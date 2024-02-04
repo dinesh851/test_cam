@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>On-screen Camera</title>
+    <title>OCR with Tesseract.js</title>
     <style>
         body {
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
-            height: 100vh;
-            margin: 0;
+            padding: 20px;
         }
 
         #camera {
@@ -18,26 +17,61 @@
             max-width: 600px;
             height: auto;
             border: 2px solid #ccc;
+            margin-bottom: 20px;
+        }
+
+        #image-text {
+            width: 100%;
+            max-width: 600px;
+            height: 100px;
+            resize: none;
         }
     </style>
 </head>
 <body>
     <video id="video" playsinline autoplay></video>
-    <button></button>
-    <script>
-        var video = document.querySelector('#video');
+    <button onclick="takePhoto()">Take Photo</button>
+    <br>
+    <progress id="progressbar" value="0" max="1"></progress>
+    <br>
+    <textarea id="image-text" placeholder="Recognized Text"></textarea>
 
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-                .then(function (mediaStream) {
-                    video.srcObject = mediaStream;
-                    video.play();
+    <script src='https://cdn.rawgit.com/naptha/tesseract.js/1.0.10/dist/tesseract.js'></script>
+    <script>
+        var video = document.getElementById('video');
+        var imageText = document.getElementById('image-text');
+
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+            .then(function (mediaStream) {
+                video.srcObject = mediaStream;
+            })
+            .catch(function (error) {
+                console.error('Error accessing back camera:', error);
+            });
+
+        function takePhoto() {
+            var canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            var context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            canvas.toBlob(function (blob) {
+                processImage(blob);
+            }, 'image/jpeg');
+        }
+
+        function processImage(imageBlob) {
+            Tesseract.recognize(imageBlob)
+                .progress(function (message) {
+                    document.getElementById('progressbar').value = message.progress;
                 })
-                .catch(function (error) {
-                    console.error('Error accessing camera:', error);
+                .then(function (result) {
+                    imageText.value = result.text;
+                })
+                .catch(function (err) {
+                    console.error(err);
                 });
-        } else {
-            console.error('getUserMedia is not supported on this browser');
         }
     </script>
 </body>
